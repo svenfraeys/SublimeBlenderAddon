@@ -2,6 +2,8 @@ SublimeBlenderAddon
 ===================
 #### Execute scripts in Blender
 
+![alt tag](https://dl.dropboxusercontent.com/u/1652825/code/sublime/sublimeBlender/sublimeBlender_blenderCommand.png)
+
 ## Intro
 This is the addon that will open a connection in Blender so that [SublimeBlender](https://github.com/svenfraeys/SublimeBlender "SublimeBlender") package can send and receive data.
 
