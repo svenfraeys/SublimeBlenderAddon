@@ -291,7 +291,8 @@ class SublimeBlenderOpenConnection(bpy.types.Operator):
     '''SublimeBlender Open Connecion Start
     '''
     bl_idname = "wm.sublimeblenderopenconnection"
-    bl_label = "Open Connection"
+    bl_label = "Sublime Open Connection"
+    bl_description = "Open the connection for SublimeBlender"
     http_thread = None
     control_thread = None
 
@@ -302,9 +303,10 @@ class SublimeBlenderOpenConnection(bpy.types.Operator):
         # launch the Request handler
         try:
           httpd = socketserver.TCPServer((IP_ADDRESS, PORT), SublimeBlenderRequestHandler)
-          sb_output('Connection open...')
+          sb_output('Sublime Connection open...')
         except:
           pass
+          self.report({'ERROR'}, 'Can not open connection, connection already exist or PORT {0} is already in use'.format(PORT) )
           print('FAILED')
           return {'FINISHED'}
         
@@ -322,13 +324,15 @@ class SublimeBlenderOpenConnection(bpy.types.Operator):
         
         sb_output("SCRIPT: finished") 
 
+        self.report({'INFO'}, 'SublimeBlender Connection is open.')
+
         return {'FINISHED'}
 
 
 class TEXT_PT_sublime(bpy.types.Panel):
     bl_space_type = 'TEXT_EDITOR'
     bl_region_type = 'UI'
-    bl_label = "Sublime"
+    bl_label = "SublimeBlender"
 
     def draw(self, context):
         layout = self.layout
