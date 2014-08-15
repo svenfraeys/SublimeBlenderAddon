@@ -1,3 +1,4 @@
+
 ################################################################################
 #
 # SublimeBlender.py
@@ -290,7 +291,7 @@ class SublimeBlenderOpenConnection(bpy.types.Operator):
     '''SublimeBlender Open Connecion Start
     '''
     bl_idname = "wm.sublimeblenderopenconnection"
-    bl_label = "SublimeBlender Open Connection..."
+    bl_label = "Open Connection"
     http_thread = None
     control_thread = None
 
@@ -323,11 +324,35 @@ class SublimeBlenderOpenConnection(bpy.types.Operator):
 
         return {'FINISHED'}
 
+
+class TEXT_PT_sublime(bpy.types.Panel):
+    bl_space_type = 'TEXT_EDITOR'
+    bl_region_type = 'UI'
+    bl_label = "Sublime"
+
+    def draw(self, context):
+        layout = self.layout
+
+        st = context.space_data
+
+        # find
+        col = layout.column(align=True)
+        col.operator(SublimeBlenderOpenConnection.bl_idname)
+        
+
+def menu_func(self, context):
+    self.layout.operator(SublimeBlenderOpenConnection.bl_idname)
+
 def register():
     bpy.utils.register_class(SublimeBlenderOpenConnection)
+    bpy.utils.register_class(TEXT_PT_sublime)
+    
+    bpy.types.TEXT_MT_edit.append(menu_func)
 
 def unregister():
     bpy.utils.unregister_class(SublimeBlenderOpenConnection)
+    bpy.utils.unregister_class(TEXT_PT_sublime)
+    
     
 if __name__ == "__main__":
     register()
@@ -337,6 +362,6 @@ bl_info = {
         "description": "Develop with Sublime Text 3 as an external script editor",
         "category" : "Development",
         "author" : "Sven Fraeys",
-        "wiki_url": "https://docs.google.com/document/d/1-hWEdp1Gz4zjyio7Hdc0ZnFXKNB6eusYITnuMI3n65M",
-        "version": (1, 1, 0)
+        "wiki_url": "https://github.com/svenfraeys/SublimeBlender",
+        "version": (1, 1, 1)
 }
