@@ -17,5 +17,5 @@ download or clone the package from [SublimeBlender](https://github.com/svenfraey
 
 ## How to use
 1. Activate the addon in your addons list in blender
-2. Launch in Blender `SublimeBlender : Open Connection`
+2. Launch in Blender the operator `Sublime Open Connection`, or `TextEditor > Properties > SublimeBlender`
 3. Use [SublimeBlender](https://github.com/svenfraeys/SublimeBlender "SublimeBlender") to execute scripts or to receive autocompletions
