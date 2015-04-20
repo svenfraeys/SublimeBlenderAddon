@@ -1,20 +1,34 @@
+"""
+SublimeBlenderAddon
 
-################################################################################
-#
-# SublimeBlender.py
-#
-# Version: 1.10
-# Author: Sven Fraeys
-#
-# Description: 
-# Blende addon, it will process the incoming url request that is launched by sublime
-# 
-# Free for non-commercial use
-#
-################################################################################
+Author: Sven Fraeys
 
+Description: 
+Blender addon, it will process the incoming url request that is launched by sublime
+
+Free for non-commercial use
+
+"""
+
+bl_info = {
+    "name" : "SublimeBlender",
+    "description": "Develop with Sublime Text 3 as an external script editor",
+    "category" : "Development",
+    "author" : "Sven Fraeys",
+    "wiki_url": "https://github.com/svenfraeys/SublimeBlender",
+    "version": (1, 1, 1)
+}
+
+import sys
+import io
+import traceback
+import threading
+import http.server
+import socketserver
+import time
 from urllib.parse import urlparse
-import sys, io, traceback, threading, http.server, socketserver, time, urllib, json
+import urllib
+import json
 import bpy
 import importlib
 import console
@@ -25,11 +39,8 @@ VERBOSITY = 0                            # level of printing (debugging)
 
 def sb_output(message,verbosity=1):
     if verbosity <= VERBOSITY:
-            print (message)
+        print (message)
 
-class SublimeBlenderCore(object):
-    """core functions
-    """
 
 class SublimeBlenderRequestHandler(http.server.BaseHTTPRequestHandler):
     """ RequestHandler will process the incoming data
@@ -97,7 +108,16 @@ class SublimeBlenderRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def blenderEval(self,value):
         try:
-                eval(vlaue)
+            return eval(value)
+        except:
+            print(traceback.format_exc())
+
+    def blender_exec_code(self,value):
+        try:
+            global blender_remote_exec_result
+            blender_remote_exec_result = None
+            exec(value, globals(), locals())
+            return blender_remote_exec_result
         except:
             print(traceback.format_exc())
 
@@ -153,7 +173,7 @@ class SublimeBlenderRequestHandler(http.server.BaseHTTPRequestHandler):
             retstr = str(completinglist[-1])
             return retstr
         else:
-                sb_output("could not find namespace : %s" % namespace )
+            sb_output("could not find namespace : %s" % namespace )
 
     def blenderConsoleNamespaceComplete(self,query,namespace):
         import console.complete_namespace
@@ -238,7 +258,10 @@ class SublimeBlenderRequestHandler(http.server.BaseHTTPRequestHandler):
                 communicateDictionary['result'] = res
 
         if 'eval' in params:
-            self.blenderEval(params['eval'])
+            communicateDictionary['result'] = self.blenderEval(params['eval'])
+
+        if 'exec' in params:
+            communicateDictionary['result'] = self.blender_exec_code(params['exec'])
             
         if "print" in params:
             self.blenderPrint(params["print"])
@@ -278,21 +301,31 @@ class SublimeBlenderHttpThread(threading.Thread):
     """ main thread that is looking for signals
     """
     def __init__(self):
+        """construct
+        """
         threading.Thread.__init__(self)
         self.httpd = None
 
     def run(self):
-        
+        """run the thread
+        """
         sb_output("HTTP Server THREAD: started")
         sb_output( "serving at port %s" % PORT)
         self.httpd.serve_forever()
         sb_output("HTTP Server THREAD: finished")
             
 class SublimeBlenderControlThread(threading.Thread):
+    """control thread
+    """
     def __init__(self):
+        """construct
+        """
         threading.Thread.__init__(self)
         self.httpd = None
+
     def run(self):
+        """run the control thread
+        """
         sb_output("Control THREAD: started")
         runcontrol = 1        
         while runcontrol >0:
@@ -308,84 +341,86 @@ class SublimeBlenderControlThread(threading.Thread):
         sb_output("Control THREAD: finished")
                         
 class SublimeBlenderOpenConnection(bpy.types.Operator):
-        """SublimeBlender Open Connecion Start
-        """
-        bl_idname = "wm.sublimeblenderopenconnection"
-        bl_label = "Sublime Open Connection"
-        bl_description = "Open the connection for SublimeBlender"
-        http_thread = None
-        control_thread = None
+    """SublimeBlender Open Connecion Start
+    """
+    bl_idname = "wm.sublimeblenderopenconnection"
+    bl_label = "Sublime Open Connection"
+    bl_description = "Open the connection for SublimeBlender"
 
-        def execute(self, context):
-                
-                httpd = None
+    # keeping the thread in class variable
+    http_thread = None
+    control_thread = None
 
-                # launch the Request handler
-                try:
-                    httpd = socketserver.TCPServer((IP_ADDRESS, PORT), SublimeBlenderRequestHandler)
-                    sb_output('Sublime Connection open...')
-                except:
-                    pass
-                    self.report({'ERROR'}, 'Can not open connection, connection already exist or PORT {0} is already in use'.format(PORT) )
-                    print('FAILED')
-                    return {'FINISHED'}
-                
-                sb_output("SCRIPT: started")
-                sb_output("httpd: %s" % httpd)
+    def execute(self, context):
+        httpd = None
 
-                self.http_thread = SublimeBlenderHttpThread()
-                self.http_thread.httpd = httpd
-                self.http_thread.start()
-                
+        host = IP_ADDRESS
+        port = PORT
 
-                self.control_thread = SublimeBlenderControlThread()
-                self.control_thread.httpd = httpd
-                self.control_thread.start()
-                
-                sb_output("SCRIPT: finished") 
+        # launch the Request handler
+        try:
+            httpd = socketserver.TCPServer((host, port), SublimeBlenderRequestHandler)
+            sb_output('Sublime Connection open...')
+        except:
+            pass
+            self.report({'ERROR'}, 'Can not open connection, connection already exist or PORT {0} is already in use'.format(PORT) )
+            print('FAILED')
+            return {'FINISHED'}
+        
+        sb_output("SCRIPT: started")
+        sb_output("httpd: %s" % httpd)
 
-                self.report({'INFO'}, 'SublimeBlender Connection is open.')
+        # start http thread
+        self.http_thread = SublimeBlenderHttpThread()
+        self.http_thread.httpd = httpd
+        self.http_thread.start()
+        
+        # start control thread
+        self.control_thread = SublimeBlenderControlThread()
+        self.control_thread.httpd = httpd
+        self.control_thread.start()
+        
+        sb_output("SCRIPT: finished") 
 
-                return {'FINISHED'}
+        self.report({'INFO'}, 'SublimeBlender Connection is open.')
 
+        return {'FINISHED'}
 
 class TEXT_PT_sublime(bpy.types.Panel):
-        bl_space_type = 'TEXT_EDITOR'
-        bl_region_type = 'UI'
-        bl_label = "SublimeBlender"
+    """ui pane next to the text editor to open the connection
+    """
+    bl_space_type = 'TEXT_EDITOR'
+    bl_region_type = 'UI'
+    bl_label = "SublimeBlender"
 
-        def draw(self, context):
-                layout = self.layout
-
-                st = context.space_data
-
-                # find
-                col = layout.column(align=True)
-                col.operator(SublimeBlenderOpenConnection.bl_idname)
-                
+    def draw(self, context):
+        """draw the gui
+        """
+        layout = self.layout
+        st = context.space_data
+        col = layout.column(align=True)
+        col.operator(SublimeBlenderOpenConnection.bl_idname)
 
 def menu_func(self, context):
-        self.layout.operator(SublimeBlenderOpenConnection.bl_idname)
+    """add actions to the menu
+    """
+    self.layout.operator(SublimeBlenderOpenConnection.bl_idname)
 
 def register():
-        bpy.utils.register_class(SublimeBlenderOpenConnection)
-        bpy.utils.register_class(TEXT_PT_sublime)
-        
-        bpy.types.TEXT_MT_edit.append(menu_func)
+    """register the plugin
+    """
+    bpy.utils.register_class(SublimeBlenderOpenConnection)
+    bpy.utils.register_class(TEXT_PT_sublime)
+    
+    bpy.types.TEXT_MT_edit.append(menu_func)
 
 def unregister():
-        bpy.utils.unregister_class(SublimeBlenderOpenConnection)
-        bpy.utils.unregister_class(TEXT_PT_sublime)
-        
-        
+    """unregister given plugin
+    """
+    bpy.utils.unregister_class(SublimeBlenderOpenConnection)
+    bpy.utils.unregister_class(TEXT_PT_sublime)
+                
 if __name__ == "__main__":
-        register()
+    # register
+    register()
 
-bl_info = {
-                "name" : "SublimeBlender",
-                "description": "Develop with Sublime Text 3 as an external script editor",
-                "category" : "Development",
-                "author" : "Sven Fraeys",
-                "wiki_url": "https://github.com/svenfraeys/SublimeBlender",
-                "version": (1, 1, 1)
-}
